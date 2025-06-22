@@ -85,15 +85,15 @@ if (!is.null(dividends)) {
 }
 
 # === COMBINE FILTERS ===
-
-# === COMBINE FILTERS ===
 signal_dates <- index(mom_QQQ)
 weights <- xts(matrix(0, nrow = length(signal_dates), ncol = 5), order.by = signal_dates)
 colnames(weights) <- c("QQQ", "SDY", "BIL", "TLT", "SPGSCI")
 
 for (i in 1:length(signal_dates)) {
+
   dt <- signal_dates[i]
-  if (is.na(canary_pass[dt]) || is.na(inversion_lagged[dt]) || is.na(div_yield_ok[dt])) next
+  print(dt)
+  if (!(dt %in% index(canary_pass)) || !(dt %in% index(inversion_lagged)) || !(dt %in% index(div_yield_ok)) || !(dt %in% index(sma_signals))) next
   
   risk_on <- canary_pass[dt] & !inversion_lagged[dt] & div_yield_ok[dt]
   
@@ -107,6 +107,71 @@ for (i in 1:length(signal_dates)) {
   }
 }
 
+mom_BIL    <- momentum_score(Cl(to.monthly(BIL,    indexAt="lastof", OHLC=FALSE)))
+mom_BIL    <- mom_BIL[complete.cases(mom_BIL),]
+mom_TLT    <- momentum_score(Cl(to.monthly(TLT,    indexAt="lastof", OHLC=FALSE)))
+mom_SPGSCI <- momentum_score(Cl(to.monthly(SPGSCI, indexAt="lastof", OHLC=FALSE)))
+signal_dates <- index(mom_BIL)
+weights <- xts(matrix(0, nrow=length(signal_dates), ncol=5), order.by=signal_dates)
+colnames(weights) <- c("QQQ","SDY","BIL","TLT","SPGSCI")
+
+for(i in seq_along(signal_dates)) {
+  dt <- signal_dates[i]
+  print(dt)
+  
+  # 1) pick the most recent signal at or before dt
+  canary_val <- last(canary_pass[index(canary_pass) <= dt])
+  inv_val    <- last(inversion_lagged[index(inversion_lagged) <= dt])
+  div_val    <- last(div_yield_ok[index(div_yield_ok) <= dt])
+  sma_vals   <- last(sma_signals[index(sma_signals) <= dt])
+  
+  # 2) skip if any are NA or SMA flags missing
+  if(any(is.na(c(canary_val, inv_val, div_val))) || length(sma_vals) != ncol(sma_signals)) {
+    next
+  }
+  
+  # 3) aggregate the risk-on flag
+  risk_on <- canary_val && !inv_val && div_val
+  
+  if(risk_on) {
+    # Offensive: pick QQQ vs SDY
+    q_mom <- last(mom_QQQ[index(mom_QQQ) <= dt])
+    s_mom <- last(mom_SDY[index(mom_SDY) <= dt])
+    best <- if(q_mom > s_mom) "QQQ" else "SDY"
+    weights[i, best] <- 1
+    
+  } else {
+    # Defensive: pick among BIL, TLT, SPGSCI
+    # 4) Get the most recent defensive momentums as plain numbers
+    bil_val    <- as.numeric(last(mom_BIL[index(mom_BIL) <= dt]))
+    tlt_val    <- as.numeric(last(mom_TLT[index(mom_TLT) <= dt]))
+    spgsci_val <- as.numeric(last(mom_SPGSCI[index(mom_SPGSCI) <= dt]))
+    
+    def_moms <- c(BIL = bil_val,
+                  TLT = tlt_val,
+                  SPGSCI = spgsci_val)
+    
+    # 5) Mask out any that fail their SMA test
+    active_flags <- as.logical(last(sma_signals[index(sma_signals) <= dt]))
+    def_moms[!active_flags] <- NA
+    # mask out any that fail their SMA test
+    def_moms[!as.logical(sma_vals)] <- NA
+    
+    # If *all* defensive MOMs are NA, fall back to BIL
+    if (all(is.na(def_moms))) {
+      def_moms["BIL"] <- as.numeric(
+        last(mom_BIL[index(mom_BIL) <= dt])
+      )
+    }
+    
+    best_def <- names(which.max(def_moms))
+    if(!is.na(best_def)) weights[i, best_def] <- 1
+  }
+}
+
+
+
+
 # === RETURNS ===
 monthly_returns <- monthly_returns[index(weights), colnames(weights)]
 strategy_monthly_returns <- Return.portfolio(monthly_returns, weights = weights)
@@ -115,11 +180,19 @@ strategy_monthly_returns <- Return.portfolio(monthly_returns, weights = weights)
 daily_weights <- na.locf(merge(weights, zoo(, index(daily_prices))))
 daily_weights <- daily_weights[index(daily_prices)]
 daily_returns <- ROC(daily_prices[, colnames(weights)], type = "discrete")
+
 daily_returns <- daily_returns[index(daily_weights)]
+
+daily_weights <- daily_weights[complete.cases(daily_weights),]
+daily_returns <- daily_returns[complete.cases(daily_returns),]
+
 strategy_daily_returns <- Return.portfolio(daily_returns, weights = daily_weights)
 
+bmk <- ROC(daily_prices$SPY)
+
+
 # Add SPY benchmark
-combined_returns <- na.omit(merge(strategy_daily_returns, daily_returns$SPY))
+combined_returns <- na.omit(merge(strategy_daily_returns, bmk))
 colnames(combined_returns) <- c("Strategy", "SPY")
 
 # === RESULTS ===

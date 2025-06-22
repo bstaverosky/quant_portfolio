@@ -89,9 +89,6 @@ colnames(erc_weights_xts) <- strategy_names
 colnames(mu_weights_xts) <- strategy_names
 colnames(blend_weights_xts) <- strategy_names
 
-
-
-
 for (i in start_index:(n_periods - 1)) {
   print(i)
   R_window <- aligned_returns[(i - window_length):(i - 1), ]
@@ -127,6 +124,6 @@ print(round(perf_table, 3))
 # === PLOT ===
 charts.PerformanceSummary(portfolios, legend.loc = "topleft", main = "Walk-Forward Strategy Comparison")
 
-head(erc_weights_xts)
-head(mu_weights_xts)
-head(blend_weights_xts)
+tail(erc_weights_xts)
+tail(mu_weights_xts)
+tail(blend_weights_xts)

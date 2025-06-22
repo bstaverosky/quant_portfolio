@@ -163,6 +163,3 @@ print(tail(blend_weights_xts))
 print(tail(erc_etf_xts))
 print(tail(mu_etf_xts))
 print(tail(blend_etf_xts))
-
-
-
