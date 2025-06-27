@@ -138,15 +138,20 @@ generate_trade_list <- function(target_w,
   trades
 }
 
+target_w <- tw
+current_shares <- current
+cash_inflow <- 1300
+date <- Sys.Date()
+
 generate_trade_list <- function(target_w,
                                 current_shares = NULL,
-                                cash_inflow = 0,
+                                cash_inflow = 1300,
                                 date = Sys.Date()) {
   require(quantmod)
   
   # Make sure date is Date
-  date <- as.Date(date)
-  next_day <- date + 1
+  date <- as.Date(date)-1
+  prev_day <- date - 1
   
   # 1) Build full ticker list & initialize current shares
   all_tickers <- names(target_w)
@@ -157,20 +162,32 @@ generate_trade_list <- function(target_w,
   
   # 2) Fetch or set prices
   prices <- sapply(all_tickers, function(tk) {
+    print(tk)
     if (tolower(tk) == "cash") {
       return(1)  # $1 per "share" of cash
     }
     # pull data from 'date' through 'date+1'
     data_xts <- try(
-      getSymbols(tk, from = date, to = next_day,
-                 auto.assign = FALSE, warnings = FALSE),
+      #getSymbols(tk, from = prev_day, to = date,
+      #           auto.assign = FALSE, warnings = FALSE)
+      getSymbols(tk, 
+                 from = as.Date(prev_day), 
+                 to = as.Date(date),
+                 auto.assign = FALSE, 
+                 warnings = FALSE, 
+                 method = "libcurl", 
+                 src = "yahoo",
+                 timeout = 60,
+                 connecttimeout=30),
       silent = TRUE
     )
     if (inherits(data_xts, "try-error") || nrow(data_xts) == 0) {
       stop("Price fetch failed for ", tk, " on ", date)
     }
     # extract the row exactly matching 'date'
-    price <- as.numeric(Cl(data_xts)[as.character(date), 1])
+    #price <- as.numeric(Cl(data_xts)[as.character(date), 1])
+    price <- as.numeric(data_xts[,4])
+    
     if (is.na(price)) {
       stop("No price for ", tk, " on ", date)
     }
