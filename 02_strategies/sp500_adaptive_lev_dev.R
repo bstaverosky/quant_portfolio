@@ -24,7 +24,6 @@ library(kableExtra)
 library(ggplot2)
 library(ggthemes)
 library(xtable)
-library(dplyr)
 source("/home/brian/Documents/projects/adaptive_leverage/adhoc_functions.R")
 source("~/quant_portfolio/02_strategies/utils.R")  # adjust path as needed
 }

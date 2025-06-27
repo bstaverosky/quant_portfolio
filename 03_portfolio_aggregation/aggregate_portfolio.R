@@ -4,7 +4,27 @@ library(xts)
 library(PerformanceAnalytics)
 library(quadprog)
 
+getSymbols("QQQ",
+           src    = "yahoo",
+           method = "libcurl",
+           timeout        = 60,   # total time (secs)
+           connecttimeout = 30,   # DNS+TCP handshake
+           auto.assign   = FALSE)
+
+
+
+getSymbols("QQQ", 
+           from = as.Date("2025-05-29"), 
+           to = as.Date("2025-05-30"),
+           auto.assign = FALSE, 
+           warnings = FALSE, 
+           method = "libcurl", 
+           src = "yahoo",
+           timeout = 60,
+           connecttimeout=30)
+
 # === CONFIG ===
+options(timeout = 300)
 input_dir <- "/home/brian/quant_portfolio/03_portfolio_aggregation/strategy_outputs"
 strategy_files <- list.files(input_dir, pattern = "_output\\.rds$", full.names = TRUE)
 window_length <- 504  # lookback window for weighting schemes
@@ -23,7 +43,7 @@ common_dates <- as.Date(Reduce(intersect, lapply(return_list, index)))
 aligned_returns <- do.call(merge, lapply(return_list, function(x) x[common_dates]))
 
 # === PREPARE STRATEGY-LEVEL FUNCTIONS ===
-calc_erc_weights_qp <- function(R, tol = 1e-6, max_iter = 500) {
+calc_erc_weights_qp         <- function(R, tol = 1e-6, max_iter = 500) {
   covmat <- cov(R, use = "pairwise.complete.obs")
   n <- ncol(covmat)
   w <- rep(1 / n, n)
@@ -44,12 +64,150 @@ calc_erc_weights_qp <- function(R, tol = 1e-6, max_iter = 500) {
   }
   w
 }
-
 calc_multiplicative_weights <- function(R, min_weight = 0.02) {
   cum_returns <- apply(1 + R, 2, prod, na.rm = TRUE) - 1
   adj_returns <- pmax(cum_returns, min_weight)
   adj_returns / sum(adj_returns)
 }
+
+generate_trade_list <- function(target_w,
+                                current_shares = NULL,
+                                cash_inflow = 0,
+                                date = Sys.Date()) {
+  require(quantmod)
+  
+  # 1) Ensure all tickers are present
+  all_tickers <- names(target_w)
+  cur_sh      <- setNames(rep(0, length(all_tickers)), all_tickers)
+  if (!is.null(current_shares)) {
+    cur_sh[names(current_shares)] <- current_shares
+  }
+  
+  # 2) Fetch or set prices
+  prices <- sapply(all_tickers, function(tk) {
+    if (tolower(tk) == "cash") {
+      return(1)  # $1 per "share" of cash
+    }
+    # otherwise pull close price for that date
+    data <- try(getSymbols(tk, 
+                           from = date, 
+                           to = date,
+                           auto.assign = FALSE, 
+                           warnings = FALSE, 
+                           method = "libcurl", 
+                           src = "yahoo",
+                           timeout = 60,
+                           connecttimeout=30), silent = TRUE)
+    if (inherits(data, "try-error") || nrow(data) == 0)
+      stop("Price fetch failed for ", tk)
+    as.numeric(Cl(data)[as.character(date), 1])
+  })
+  
+  # 3) Compute current market values and total capital
+  mkt_val    <- cur_sh * prices
+  total_val  <- sum(mkt_val, na.rm = TRUE) + cash_inflow
+  
+  # 4) Compute target dollar allocations
+  target_val    <- total_val * target_w
+  
+  # 5) Compute target shares
+  target_shares <- sapply(all_tickers, function(tk) {
+    if (tolower(tk) == "cash") {
+      return(target_val[tk])      # for cash, #shares = $ amount
+    }
+    # for ETFs: integer shares
+    floor(target_val[tk] / prices[tk])
+  })
+  
+  # 6) Compute trades
+  trade_shares <- target_shares - cur_sh
+  
+  # 7) Assemble trade list
+  trades <- data.frame(
+    ticker         = all_tickers,
+    price          = as.numeric(prices),
+    current_shares = as.numeric(cur_sh),
+    target_shares  = as.numeric(target_shares),
+    trade_shares   = as.numeric(trade_shares),
+    stringsAsFactors = FALSE
+  )
+  
+  # drop zeros if desired
+  trades <- trades[trades$trade_shares != 0, ]
+  rownames(trades) <- NULL
+  trades
+}
+
+generate_trade_list <- function(target_w,
+                                current_shares = NULL,
+                                cash_inflow = 0,
+                                date = Sys.Date()) {
+  require(quantmod)
+  
+  # Make sure date is Date
+  date <- as.Date(date)
+  next_day <- date + 1
+  
+  # 1) Build full ticker list & initialize current shares
+  all_tickers <- names(target_w)
+  cur_sh      <- setNames(rep(0, length(all_tickers)), all_tickers)
+  if (!is.null(current_shares)) {
+    cur_sh[names(current_shares)] <- current_shares
+  }
+  
+  # 2) Fetch or set prices
+  prices <- sapply(all_tickers, function(tk) {
+    if (tolower(tk) == "cash") {
+      return(1)  # $1 per "share" of cash
+    }
+    # pull data from 'date' through 'date+1'
+    data_xts <- try(
+      getSymbols(tk, from = date, to = next_day,
+                 auto.assign = FALSE, warnings = FALSE),
+      silent = TRUE
+    )
+    if (inherits(data_xts, "try-error") || nrow(data_xts) == 0) {
+      stop("Price fetch failed for ", tk, " on ", date)
+    }
+    # extract the row exactly matching 'date'
+    price <- as.numeric(Cl(data_xts)[as.character(date), 1])
+    if (is.na(price)) {
+      stop("No price for ", tk, " on ", date)
+    }
+    price
+  })
+  
+  # 3) Compute current market values and total capital
+  mkt_val   <- cur_sh * prices
+  total_val <- sum(mkt_val, na.rm = TRUE) + cash_inflow
+  
+  # 4) Compute target dollar allocations
+  target_val <- total_val * target_w
+  
+  # 5) Compute target shares
+  target_shares <- sapply(all_tickers, function(tk) {
+    if (tolower(tk) == "cash") {
+      return(target_val[tk])  # dollars of cash
+    }
+    floor(target_val[tk] / prices[tk])
+  })
+  
+  # 6) Compute trades
+  trade_shares <- target_shares - cur_sh
+  
+  # 7) Assemble and return
+  trades <- data.frame(
+    ticker         = all_tickers,
+    price          = prices,
+    current_shares = as.numeric(cur_sh),
+    target_shares  = as.numeric(target_shares),
+    trade_shares   = as.numeric(trade_shares),
+    stringsAsFactors = FALSE
+  )
+  # drop zero-trades
+  trades[trades$trade_shares != 0, , drop = FALSE]
+}
+
 
 # === SETUP WALK-FORWARD ===
 start_index <- window_length + 1
@@ -153,6 +311,8 @@ print(round(perf_table,3))
 
 # === PLOTS ===
 charts.PerformanceSummary(portfolios, legend.loc="topleft", main="Walk-Forward Strategy Comparison")
+Return.annualized(portfolios["2014/"])
+
 
 # === HISTORICAL WEIGHTS OUTPUT ===
 # Strategy-level:
@@ -164,5 +324,22 @@ print(tail(erc_etf_xts))
 print(tail(mu_etf_xts))
 print(tail(blend_etf_xts))
 
+# Get trade list #
 
+# Suppose your last blend weights xts has:
+tw <- as.numeric(last(blend_etf_xts))
+names(tw) <- colnames(blend_etf_xts)
+
+# And you currently hold:
+current <- c(SPY = 100, QQQ = 50, TLT = 20, cash = 1100)
+
+# With $5,000 new cash coming in:
+trade_list <- generate_trade_list(
+  target_w       = tw,
+  current_shares = current,
+  cash_inflow    = 5000,
+  date           = last(index(blend_etf_xts))
+)
+
+print(trade_list)
 
