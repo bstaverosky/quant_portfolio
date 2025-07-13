@@ -24,13 +24,19 @@ rm(list=ls())
   library(ggplot2)
   library(ggthemes)
   library(xtable)
-  library(dplyr)
   source("/home/brian/Documents/projects/adaptive_leverage/adhoc_functions.R")
   source("~/quant_portfolio/02_strategies/utils.R")  # adjust path as needed
 }
 ### LOAD ASSET TO TRADE ###
 asset <- "QQQ"
-asset <- getSymbols(asset, src = "yahoo", from = "1900-01-01", auto.assign = FALSE)
+asset <- getSymbols(asset, 
+                    src = "yahoo", 
+                    from = "1950-01-01", 
+                    auto.assign = FALSE,
+                    warnings = FALSE, 
+                    method = "libcurl", 
+                    timeout = 60,
+                    connecttimeout=30)
 asset <- asset[,4]
 names(asset) <- "Close"
 asset$Close <- na.locf(asset$Close)
