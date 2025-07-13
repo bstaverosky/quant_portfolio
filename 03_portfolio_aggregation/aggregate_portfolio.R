@@ -1,27 +1,27 @@
 rm(list=ls())
-
+library(quantmod)
 library(xts)
 library(PerformanceAnalytics)
 library(quadprog)
 
-getSymbols("QQQ",
-           src    = "yahoo",
-           method = "libcurl",
-           timeout        = 60,   # total time (secs)
-           connecttimeout = 30,   # DNS+TCP handshake
-           auto.assign   = FALSE)
-
-
-
-getSymbols("QQQ", 
-           from = as.Date("2025-05-29"), 
-           to = as.Date("2025-05-30"),
-           auto.assign = FALSE, 
-           warnings = FALSE, 
-           method = "libcurl", 
-           src = "yahoo",
-           timeout = 60,
-           connecttimeout=30)
+# getSymbols("QQQ",
+#            src    = "yahoo",
+#            method = "libcurl",
+#            timeout        = 60,   # total time (secs)
+#            connecttimeout = 30,   # DNS+TCP handshake
+#            auto.assign   = FALSE)
+# 
+# 
+# 
+# getSymbols("QQQ", 
+#            from = as.Date("2025-05-29"), 
+#            to = as.Date("2025-05-30"),
+#            auto.assign = FALSE, 
+#            warnings = FALSE, 
+#            method = "libcurl", 
+#            src = "yahoo",
+#            timeout = 60,
+#            connecttimeout=30)
 
 # === CONFIG ===
 options(timeout = 300)
@@ -138,10 +138,10 @@ generate_trade_list <- function(target_w,
   trades
 }
 
-target_w <- tw
-current_shares <- current
-cash_inflow <- 1300
-date <- Sys.Date()
+#target_w <- tw
+#current_shares <- current
+#cash_inflow <- 1300
+#date <- Sys.Date()
 
 generate_trade_list <- function(target_w,
                                 current_shares = NULL,
@@ -327,7 +327,7 @@ rownames(perf_table) <- c("Annual Return","Annual Sharpe")
 print(round(perf_table,3))
 
 # === PLOTS ===
-charts.PerformanceSummary(portfolios, legend.loc="topleft", main="Walk-Forward Strategy Comparison")
+charts.PerformanceSummary(portfolios["2015/"], legend.loc="topleft", main="Walk-Forward Strategy Comparison")
 Return.annualized(portfolios["2014/"])
 
 
@@ -348,13 +348,23 @@ tw <- as.numeric(last(blend_etf_xts))
 names(tw) <- colnames(blend_etf_xts)
 
 # And you currently hold:
-current <- c(SPY = 100, QQQ = 50, TLT = 20, cash = 1100)
+current <- c(cash = 37,
+             QQQ = 0,
+             TQQQ = 0,
+             SPY = 0,
+             UPRO = 0,
+             EURL = 65.5,
+             EDC = 55,
+             DRN = 0,
+             TYD = 0,
+             TMF = 0,
+             SHNY = 21)
 
 # With $5,000 new cash coming in:
 trade_list <- generate_trade_list(
   target_w       = tw,
   current_shares = current,
-  cash_inflow    = 5000,
+  cash_inflow    = 1300,
   date           = last(index(blend_etf_xts))
 )
 
