@@ -25,7 +25,7 @@ library(quadprog)
 
 # === CONFIG ===
 options(timeout = 300)
-input_dir <- "/home/brian/quant_portfolio/03_portfolio_aggregation/strategy_outputs"
+input_dir <- "03_portfolio_aggregation/strategy_outputs"
 strategy_files <- list.files(input_dir, pattern = "_output\\.rds$", full.names = TRUE)
 window_length <- 504  # lookback window for weighting schemes
 
@@ -70,73 +70,73 @@ calc_multiplicative_weights <- function(R, min_weight = 0.02) {
   adj_returns / sum(adj_returns)
 }
 
-generate_trade_list <- function(target_w,
-                                current_shares = NULL,
-                                cash_inflow = 0,
-                                date = Sys.Date()) {
-  require(quantmod)
-  
-  # 1) Ensure all tickers are present
-  all_tickers <- names(target_w)
-  cur_sh      <- setNames(rep(0, length(all_tickers)), all_tickers)
-  if (!is.null(current_shares)) {
-    cur_sh[names(current_shares)] <- current_shares
-  }
-  
-  # 2) Fetch or set prices
-  prices <- sapply(all_tickers, function(tk) {
-    if (tolower(tk) == "cash") {
-      return(1)  # $1 per "share" of cash
-    }
-    # otherwise pull close price for that date
-    data <- try(getSymbols(tk, 
-                           from = date, 
-                           to = date,
-                           auto.assign = FALSE, 
-                           warnings = FALSE, 
-                           method = "libcurl", 
-                           src = "yahoo",
-                           timeout = 60,
-                           connecttimeout=30), silent = TRUE)
-    if (inherits(data, "try-error") || nrow(data) == 0)
-      stop("Price fetch failed for ", tk)
-    as.numeric(Cl(data)[as.character(date), 1])
-  })
-  
-  # 3) Compute current market values and total capital
-  mkt_val    <- cur_sh * prices
-  total_val  <- sum(mkt_val, na.rm = TRUE) + cash_inflow
-  
-  # 4) Compute target dollar allocations
-  target_val    <- total_val * target_w
-  
-  # 5) Compute target shares
-  target_shares <- sapply(all_tickers, function(tk) {
-    if (tolower(tk) == "cash") {
-      return(target_val[tk])      # for cash, #shares = $ amount
-    }
-    # for ETFs: integer shares
-    floor(target_val[tk] / prices[tk])
-  })
-  
-  # 6) Compute trades
-  trade_shares <- target_shares - cur_sh
-  
-  # 7) Assemble trade list
-  trades <- data.frame(
-    ticker         = all_tickers,
-    price          = as.numeric(prices),
-    current_shares = as.numeric(cur_sh),
-    target_shares  = as.numeric(target_shares),
-    trade_shares   = as.numeric(trade_shares),
-    stringsAsFactors = FALSE
-  )
-  
-  # drop zeros if desired
-  trades <- trades[trades$trade_shares != 0, ]
-  rownames(trades) <- NULL
-  trades
-}
+# generate_trade_list <- function(target_w,
+#                                 current_shares = NULL,
+#                                 cash_inflow = 0,
+#                                 date = Sys.Date()) {
+#   require(quantmod)
+#   
+#   # 1) Ensure all tickers are present
+#   all_tickers <- names(target_w)
+#   cur_sh      <- setNames(rep(0, length(all_tickers)), all_tickers)
+#   if (!is.null(current_shares)) {
+#     cur_sh[names(current_shares)] <- current_shares
+#   }
+#   
+#   # 2) Fetch or set prices
+#   prices <- sapply(all_tickers, function(tk) {
+#     if (tolower(tk) == "cash") {
+#       return(1)  # $1 per "share" of cash
+#     }
+#     # otherwise pull close price for that date
+#     data <- try(getSymbols(tk, 
+#                            from = date, 
+#                            to = date,
+#                            auto.assign = FALSE, 
+#                            warnings = FALSE, 
+#                            method = "libcurl", 
+#                            src = "yahoo",
+#                            timeout = 60,
+#                            connecttimeout=30), silent = TRUE)
+#     if (inherits(data, "try-error") || nrow(data) == 0)
+#       stop("Price fetch failed for ", tk)
+#     as.numeric(Cl(data)[as.character(date), 1])
+#   })
+#   
+#   # 3) Compute current market values and total capital
+#   mkt_val    <- cur_sh * prices
+#   total_val  <- sum(mkt_val, na.rm = TRUE) + cash_inflow
+#   
+#   # 4) Compute target dollar allocations
+#   target_val    <- total_val * target_w
+#   
+#   # 5) Compute target shares
+#   target_shares <- sapply(all_tickers, function(tk) {
+#     if (tolower(tk) == "cash") {
+#       return(target_val[tk])      # for cash, #shares = $ amount
+#     }
+#     # for ETFs: integer shares
+#     floor(target_val[tk] / prices[tk])
+#   })
+#   
+#   # 6) Compute trades
+#   trade_shares <- target_shares - cur_sh
+#   
+#   # 7) Assemble trade list
+#   trades <- data.frame(
+#     ticker         = all_tickers,
+#     price          = as.numeric(prices),
+#     current_shares = as.numeric(cur_sh),
+#     target_shares  = as.numeric(target_shares),
+#     trade_shares   = as.numeric(trade_shares),
+#     stringsAsFactors = FALSE
+#   )
+#   
+#   # drop zeros if desired
+#   trades <- trades[trades$trade_shares != 0, ]
+#   rownames(trades) <- NULL
+#   trades
+# }
 
 #target_w <- tw
 #current_shares <- current
@@ -170,12 +170,12 @@ generate_trade_list <- function(target_w,
     data_xts <- try(
       #getSymbols(tk, from = prev_day, to = date,
       #           auto.assign = FALSE, warnings = FALSE)
-      getSymbols(tk, 
-                 from = as.Date(prev_day), 
+      getSymbols(tk,
+                 from = as.Date(prev_day),
                  to = as.Date(date),
-                 auto.assign = FALSE, 
-                 warnings = FALSE, 
-                 method = "libcurl", 
+                 auto.assign = FALSE,
+                 warnings = FALSE,
+                 method = "libcurl",
                  src = "yahoo",
                  timeout = 60,
                  connecttimeout=30),
@@ -236,7 +236,7 @@ erc_returns   <- mu_returns   <- blend_returns   <- aligned_returns[0,1,drop=FAL
 
 # Strategy-level weight containers
 strategy_names     <- colnames(aligned_returns)
-erc_weights_xts   <- xts(matrix(NA, nrow=length(dates), ncol=length(strategy_names)), order.by=dates)
+erc_weights_xts   <- xts(matrix(NA, nrow = length(dates) + 1, ncol = length(strategy_names)), order.by = c(dates, index(aligned_returns)[n_periods]))
 mu_weights_xts    <- erc_weights_xts
 blend_weights_xts <- erc_weights_xts
 colnames(erc_weights_xts)   <- strategy_names
@@ -245,7 +245,7 @@ colnames(blend_weights_xts) <- strategy_names
 
 # ETF-level ticker universe
 eft_universe <- unique(unlist(lapply(strategy_list, function(s) colnames(s$weights))))
-erc_etf_xts   <- xts(matrix(0, nrow=length(dates), ncol=length(eft_universe)), order.by=dates)
+erc_etf_xts   <- xts(matrix(0, nrow = length(dates) + 1, ncol = length(eft_universe)), order.by = c(dates, index(aligned_returns)[n_periods]))
 mu_etf_xts    <- erc_etf_xts
 blend_etf_xts <- erc_etf_xts
 colnames(erc_etf_xts)   <- eft_universe
@@ -253,49 +253,53 @@ colnames(mu_etf_xts)    <- eft_universe
 colnames(blend_etf_xts) <- eft_universe
 
 # === WALK-FORWARD LOOP ===
-for (i in seq(start_index, n_periods-1)) {
+for (i in seq(start_index, n_periods)) {
   print(i)
   date_index <- index(aligned_returns)[i]
-  R_window <- aligned_returns[(i-window_length):(i-1), ]
-  R_next   <- aligned_returns[i, , drop=FALSE]
+  R_window <- aligned_returns[(i - window_length):(i - 1), ]
   
   # Strategy-level weights
   w_erc   <- calc_erc_weights_qp(R_window)
   w_mu    <- calc_multiplicative_weights(R_window)
   w_blend <- 0.5 * w_erc + 0.5 * w_mu
   
-  erc_weights_xts[i-start_index+1, ]   <- w_erc
-  mu_weights_xts[i-start_index+1, ]    <- w_mu
-  blend_weights_xts[i-start_index+1, ] <- w_blend
+  erc_weights_xts[i - start_index + 1, ]   <- w_erc
+  mu_weights_xts[i - start_index + 1, ]    <- w_mu
+  blend_weights_xts[i - start_index + 1, ] <- w_blend
   
-  # Strategy returns
-  erc_returns   <- rbind(erc_returns,   xts(as.numeric(R_next %*% w_erc),   order.by=index(R_next)))
-  mu_returns    <- rbind(mu_returns,    xts(as.numeric(R_next %*% w_mu),    order.by=index(R_next)))
-  blend_returns <- rbind(blend_returns, xts(as.numeric(R_next %*% w_blend), order.by=index(R_next)))
+  # Skip return computation only
+  if (i < n_periods) {
+    R_next <- aligned_returns[i, , drop = FALSE]
+    erc_returns   <- rbind(erc_returns,   xts(as.numeric(R_next %*% w_erc),   order.by = index(R_next)))
+    mu_returns    <- rbind(mu_returns,    xts(as.numeric(R_next %*% w_mu),    order.by = index(R_next)))
+    blend_returns <- rbind(blend_returns, xts(as.numeric(R_next %*% w_blend), order.by = index(R_next)))
+  } else {
+    # Optionally compute return for the last date if needed
+    R_last <- aligned_returns[i, , drop = FALSE]
+    erc_returns   <- rbind(erc_returns,   xts(as.numeric(R_last %*% w_erc),   order.by = index(R_last)))
+    mu_returns    <- rbind(mu_returns,    xts(as.numeric(R_last %*% w_mu),    order.by = index(R_last)))
+    blend_returns <- rbind(blend_returns, xts(as.numeric(R_last %*% w_blend), order.by = index(R_last)))
+  }
+  
   
   # ETF-level aggregation
-  # Fetch asset-level weights for each strategy as of date_index
   asset_w_list <- lapply(strategy_list, function(s) {
     wt <- s$weights
-    # latest row <= date_index
     dates_avail <- index(wt)[index(wt) <= date_index]
-    if (length(dates_avail)==0) return(setNames(rep(0, ncol(wt)), colnames(wt)))
-    #as.numeric(wt[dates_avail[length(dates_avail)], ])
+    if (length(dates_avail) == 0) return(setNames(rep(0, ncol(wt)), colnames(wt)))
     wt[dates_avail[length(dates_avail)], ]
   })
   names(asset_w_list) <- strategy_names
   
-  # Helper to build ETF weights
   build_etf <- function(strat_w) {
     etf_w <- setNames(rep(0, length(eft_universe)), eft_universe)
     for (j in seq_along(strat_w)) {
-      print(j)
       name_j <- strategy_names[j]
       wj_strat <- strat_w[j]
       aw <- asset_w_list[[name_j]]
       tickers <- names(aw)
       for (k in seq_along(aw)) {
-        etf_w[tickers[k]] <- etf_w[tickers[k]] + aw[,k] * wj_strat
+        etf_w[tickers[k]] <- etf_w[tickers[k]] + aw[, k] * wj_strat
       }
     }
     etf_w / sum(etf_w)
@@ -305,9 +309,9 @@ for (i in seq(start_index, n_periods-1)) {
   muf <- build_etf(w_mu)
   blf <- build_etf(w_blend)
   
-  erc_etf_xts[i-start_index+1, ]   <- erf
-  mu_etf_xts[i-start_index+1, ]    <- muf
-  blend_etf_xts[i-start_index+1, ] <- blf
+  erc_etf_xts[i - start_index + 1, ]   <- erf
+  mu_etf_xts[i - start_index + 1, ]    <- muf
+  blend_etf_xts[i - start_index + 1, ] <- blf
 }
 
 # === PERFORMANCE ===
@@ -348,25 +352,24 @@ tw <- as.numeric(last(blend_etf_xts))
 names(tw) <- colnames(blend_etf_xts)
 
 # And you currently hold:
-current <- c(cash = 37,
+current <- c(cash = 0,
              QQQ = 0,
              TQQQ = 0,
              SPY = 0,
              UPRO = 0,
-             EURL = 65.5,
-             EDC = 55,
+             EURL = 0,
+             EDC = 0,
              DRN = 0,
              TYD = 0,
              TMF = 0,
-             SHNY = 21)
+             SHNY = 0)
 
 # With $5,000 new cash coming in:
 trade_list <- generate_trade_list(
   target_w       = tw,
   current_shares = current,
-  cash_inflow    = 1300,
+  cash_inflow    = 5000,
   date           = last(index(blend_etf_xts))
 )
 
 print(trade_list)
-

@@ -5,7 +5,7 @@ suppressPackageStartupMessages({
   library(PerformanceAnalytics)
   library(FRAPO)
   library(quantmod)
-  source("~/quant_portfolio/02_strategies/utils.R")  # adjust path as needed
+  source("02_strategies/utils.R")  # adjust path as needed
 })
 
 ### PARAMETERS ###
@@ -156,7 +156,7 @@ assets <- lapply(etfs, FUN = function(x){
                    from = "1950-01-01", 
                    auto.assign = FALSE,
                    warnings = FALSE, 
-                   method = "libcurl", 
+                   # method = "libcurl", 
                    timeout = 60,
                    connecttimeout=30)
   df <- df[,4]
@@ -244,26 +244,5 @@ export_strategy_output(
   strategy_name = "Josh_Strat",
   returns_xts = returns_xts,
   weights_xts = strat_wts,
-  output_dir = "/home/brian/quant_portfolio/03_portfolio_aggregation/strategy_outputs"
+  output_dir = "03_portfolio_aggregation/strategy_outputs"
 )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

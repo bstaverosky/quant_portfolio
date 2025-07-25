@@ -24,8 +24,8 @@ rm(list=ls())
   library(ggplot2)
   library(ggthemes)
   library(xtable)
-  source("/home/brian/Documents/projects/adaptive_leverage/adhoc_functions.R")
-  source("~/quant_portfolio/02_strategies/utils.R")  # adjust path as needed
+  source("02_strategies/adhoc_functions.R")
+  source("02_strategies/utils.R")  # adjust path as needed
 }
 ### LOAD ASSET TO TRADE ###
 asset <- "QQQ"
@@ -34,7 +34,7 @@ asset <- getSymbols(asset,
                     from = "1950-01-01", 
                     auto.assign = FALSE,
                     warnings = FALSE, 
-                    method = "libcurl", 
+                    # method = "libcurl", 
                     timeout = 60,
                     connecttimeout=30)
 asset <- asset[,4]
@@ -241,14 +241,5 @@ export_strategy_output(
   strategy_name = "Adaptive_Leverage_QQQ",
   returns_xts = return_xts,
   weights_xts = weights_xts,
-  output_dir = "/home/brian/quant_portfolio/03_portfolio_aggregation/strategy_outputs"
+  output_dir = "03_portfolio_aggregation/strategy_outputs"
 )
-
-
-
-
-
-
-
-
-
