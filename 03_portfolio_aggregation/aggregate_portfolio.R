@@ -28,6 +28,7 @@ options(timeout = 300)
 input_dir <- "/home/brian/quant_portfolio/03_portfolio_aggregation/strategy_outputs"
 strategy_files <- list.files(input_dir, pattern = "_output\\.rds$", full.names = TRUE)
 window_length <- 504  # lookback window for weighting schemes
+#window_length <- 756 
 
 # === LOAD STRATEGY DATA ===
 strategy_list <- list()
@@ -68,6 +69,31 @@ calc_multiplicative_weights <- function(R, min_weight = 0.02) {
   cum_returns <- apply(1 + R, 2, prod, na.rm = TRUE) - 1
   adj_returns <- pmax(cum_returns, min_weight)
   adj_returns / sum(adj_returns)
+}
+
+calc_multiplicative_weights <- function(weights, returns, eta = 0.5) {
+  # Safety checks
+  if (length(weights) != length(returns)) stop("weights and returns must be same length")
+  if (any(weights < 0)) stop("weights must be non-negative")
+  if (abs(sum(weights) - 1) > 1e-6) stop("weights must sum to 1")
+  
+  # Normalize returns to [0, 1] loss scale
+  max_ret <- max(returns)
+  min_ret <- min(returns)
+  range_ret <- max_ret - min_ret
+  if (range_ret == 0) {
+    losses <- rep(0.5, length(returns))  # neutral losses if returns are all the same
+  } else {
+    losses <- (max_ret - returns) / range_ret
+  }
+  
+  # Multiplicative weights update
+  updated_weights <- weights * exp(-eta * losses)
+  
+  # Normalize back to sum to 1
+  updated_weights <- updated_weights / sum(updated_weights)
+  
+  return(updated_weights)
 }
 
 generate_trade_list <- function(target_w,
@@ -252,6 +278,10 @@ colnames(erc_etf_xts)   <- eft_universe
 colnames(mu_etf_xts)    <- eft_universe
 colnames(blend_etf_xts) <- eft_universe
 
+# Track Historical Weights #
+prev_mu_weights <- rep(1 / ncol(aligned_returns), ncol(aligned_returns))
+names(prev_mu_weights) <- colnames(aligned_returns)
+
 # === WALK-FORWARD LOOP ===
 for (i in seq(start_index, n_periods-1)) {
   print(i)
@@ -261,7 +291,11 @@ for (i in seq(start_index, n_periods-1)) {
   
   # Strategy-level weights
   w_erc   <- calc_erc_weights_qp(R_window)
-  w_mu    <- calc_multiplicative_weights(R_window)
+  #w_mu    <- calc_multiplicative_weights(R_window)
+  recent_returns <- as.numeric(R_next)  # vector of most recent returns
+  w_mu <- calc_multiplicative_weights(prev_mu_weights, recent_returns, eta = 0.5)
+  prev_mu_weights <- w_mu  # update for next iteration
+  
   w_blend <- 0.5 * w_erc + 0.5 * w_mu
   
   erc_weights_xts[i-start_index+1, ]   <- w_erc
@@ -327,8 +361,8 @@ rownames(perf_table) <- c("Annual Return","Annual Sharpe")
 print(round(perf_table,3))
 
 # === PLOTS ===
-charts.PerformanceSummary(portfolios["2015/"], legend.loc="topleft", main="Walk-Forward Strategy Comparison")
-Return.annualized(portfolios["2014/"])
+charts.PerformanceSummary(portfolios, legend.loc="topleft", main="Walk-Forward Strategy Comparison")
+Return.annualized(portfolios)
 
 
 # === HISTORICAL WEIGHTS OUTPUT ===
