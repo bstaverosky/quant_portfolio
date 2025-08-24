@@ -4,25 +4,6 @@ library(xts)
 library(PerformanceAnalytics)
 library(quadprog)
 
-# getSymbols("QQQ",
-#            src    = "yahoo",
-#            method = "libcurl",
-#            timeout        = 60,   # total time (secs)
-#            connecttimeout = 30,   # DNS+TCP handshake
-#            auto.assign   = FALSE)
-# 
-# 
-# 
-# getSymbols("QQQ", 
-#            from = as.Date("2025-05-29"), 
-#            to = as.Date("2025-05-30"),
-#            auto.assign = FALSE, 
-#            warnings = FALSE, 
-#            method = "libcurl", 
-#            src = "yahoo",
-#            timeout = 60,
-#            connecttimeout=30)
-
 # === CONFIG ===
 options(timeout = 300)
 input_dir <- "03_portfolio_aggregation/strategy_outputs"
@@ -95,88 +76,23 @@ calc_multiplicative_weights <- function(weights, returns, eta = 0.5) {
   return(updated_weights)
 }
 
-# generate_trade_list <- function(target_w,
-#                                 current_shares = NULL,
-#                                 cash_inflow = 0,
-#                                 date = Sys.Date()) {
-#   require(quantmod)
-#   
-#   # 1) Ensure all tickers are present
-#   all_tickers <- names(target_w)
-#   cur_sh      <- setNames(rep(0, length(all_tickers)), all_tickers)
-#   if (!is.null(current_shares)) {
-#     cur_sh[names(current_shares)] <- current_shares
-#   }
-#   
-#   # 2) Fetch or set prices
-#   prices <- sapply(all_tickers, function(tk) {
-#     if (tolower(tk) == "cash") {
-#       return(1)  # $1 per "share" of cash
-#     }
-#     # otherwise pull close price for that date
-#     data <- try(getSymbols(tk, 
-#                            from = date, 
-#                            to = date,
-#                            auto.assign = FALSE, 
-#                            warnings = FALSE, 
-#                            method = "libcurl", 
-#                            src = "yahoo",
-#                            timeout = 60,
-#                            connecttimeout=30), silent = TRUE)
-#     if (inherits(data, "try-error") || nrow(data) == 0)
-#       stop("Price fetch failed for ", tk)
-#     as.numeric(Cl(data)[as.character(date), 1])
-#   })
-#   
-#   # 3) Compute current market values and total capital
-#   mkt_val    <- cur_sh * prices
-#   total_val  <- sum(mkt_val, na.rm = TRUE) + cash_inflow
-#   
-#   # 4) Compute target dollar allocations
-#   target_val    <- total_val * target_w
-#   
-#   # 5) Compute target shares
-#   target_shares <- sapply(all_tickers, function(tk) {
-#     if (tolower(tk) == "cash") {
-#       return(target_val[tk])      # for cash, #shares = $ amount
-#     }
-#     # for ETFs: integer shares
-#     floor(target_val[tk] / prices[tk])
-#   })
-#   
-#   # 6) Compute trades
-#   trade_shares <- target_shares - cur_sh
-#   
-#   # 7) Assemble trade list
-#   trades <- data.frame(
-#     ticker         = all_tickers,
-#     price          = as.numeric(prices),
-#     current_shares = as.numeric(cur_sh),
-#     target_shares  = as.numeric(target_shares),
-#     trade_shares   = as.numeric(trade_shares),
-#     stringsAsFactors = FALSE
-#   )
-#   
-#   # drop zeros if desired
-#   trades <- trades[trades$trade_shares != 0, ]
-#   rownames(trades) <- NULL
-#   trades
-# }
-
-#target_w <- tw
-#current_shares <- current
-#cash_inflow <- 1300
-#date <- Sys.Date()
-
 generate_trade_list <- function(target_w,
                                 current_shares = NULL,
-                                cash_inflow = 1300,
+                                cash_inflow = 0,
                                 date = Sys.Date()) {
   require(quantmod)
   
-  # Make sure date is Date
-  date <- as.Date(date)-1
-  prev_day <- date - 1
+  # Get today's date
+  today <- Sys.Date()
+  # Get weekday (Sunday = 0, Monday = 1, ..., Saturday = 6)
+  weekday <- as.POSIXlt(today)$wday
+  # Determine previous business day
+  prev_business_day <- switch(as.character(weekday),
+                              "1" = today - 3,  # Monday → previous Friday
+                              "0" = today - 2,  # Sunday → previous Friday
+                              "6" = today - 1,  # Saturday → previous Friday
+                              today - 1         # Tuesday–Friday → previous day
+  )
   
   # 1) Build full ticker list & initialize current shares
   all_tickers <- names(target_w)
@@ -188,33 +104,65 @@ generate_trade_list <- function(target_w,
   # 2) Fetch or set prices
   prices <- sapply(all_tickers, function(tk) {
     print(tk)
+    
     if (tolower(tk) == "cash") {
       return(1)  # $1 per "share" of cash
     }
-    # pull data from 'date' through 'date+1'
-    data_xts <- try(
-      #getSymbols(tk, from = prev_day, to = date,
-      #           auto.assign = FALSE, warnings = FALSE)
-      getSymbols(tk,
-                 from = as.Date(prev_day),
-                 to = as.Date(date),
-                 auto.assign = FALSE,
-                 warnings = FALSE,
-                 method = "libcurl",
-                 src = "yahoo",
-                 timeout = 60,
-                 connecttimeout=30),
-      silent = TRUE
-    )
-    if (inherits(data_xts, "try-error") || nrow(data_xts) == 0) {
-      stop("Price fetch failed for ", tk, " on ", date)
-    }
-    # extract the row exactly matching 'date'
-    #price <- as.numeric(Cl(data_xts)[as.character(date), 1])
-    price <- as.numeric(data_xts[,4])
     
-    if (is.na(price)) {
-      stop("No price for ", tk, " on ", date)
+    # Get current time in Eastern Time
+    Sys.setenv(TZ = "America/New_York")
+    now <- as.POSIXlt(Sys.time(), tz = "America/New_York")
+    
+    # Extract components
+    weekday <- now$wday  # Sunday = 0, Monday = 1, ..., Saturday = 6
+    hour <- now$hour
+    minute <- now$min
+    
+    # Check if it's a weekday (Monday to Friday)
+    is_weekday <- weekday >= 1 && weekday <= 5
+    
+    # Check if time is between 9:30 AM and 4:00 PM
+    is_market_hours <- (hour > 9 || (hour == 9 && minute >= 30)) &&
+      (hour < 16 || (hour == 16 && minute == 0))
+    
+    # Final check
+    market_open <- is_weekday && is_market_hours
+    
+    # If the market is open, try to get the current price
+    if (market_open == T) {
+      quote <- try(getQuote(tk), silent = TRUE)
+      if (!inherits(quote, "try-error") && !is.na(quote$Last)) {
+        price <- return(as.numeric(quote$Last))
+      } else {
+        warning("Real-time price fetch failed for ", tk, ". Falling back to historical data.")
+      }
+    } else {
+      # Otherwise, fetch historical data
+      data_xts <- try(
+        #getSymbols(tk, from = prev_day, to = date,
+        #           auto.assign = FALSE, warnings = FALSE)
+        getSymbols(tk,
+                   from = prev_business_day,
+                   to = today,
+                   auto.assign = FALSE,
+                   warnings = FALSE,
+                   method = "libcurl",
+                   src = "yahoo",
+                   timeout = 60,
+                   connecttimeout=30),
+        silent = TRUE
+      )
+      if (inherits(data_xts, "try-error") || nrow(data_xts) == 0) {
+        stop("Price fetch failed for ", tk, " on ", date)
+      }
+      # extract the row exactly matching 'date'
+      #price <- as.numeric(Cl(data_xts)[as.character(date), 1])
+      price <- as.numeric(data_xts[,4])
+      
+      if (is.na(price)) {
+        stop("No price for ", tk, " on ", date)
+      }
+      
     }
     price
   })
