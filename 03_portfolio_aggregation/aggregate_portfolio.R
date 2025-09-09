@@ -122,8 +122,8 @@ generate_trade_list <- function(target_w,
                            warnings = FALSE, 
                            method = "libcurl", 
                            src = "yahoo",
-                           timeout = 60,
-                           connecttimeout=30), silent = TRUE)
+                           timeout = 120,
+                           connecttimeout=60), silent = TRUE)
     if (inherits(data, "try-error") || nrow(data) == 0)
       stop("Price fetch failed for ", tk)
     as.numeric(Cl(data)[as.character(date), 1])
@@ -255,7 +255,8 @@ generate_trade_list <- function(target_w,
 # === SETUP WALK-FORWARD ===
 start_index <- window_length + 1
 n_periods   <- nrow(aligned_returns)
-dates       <- index(aligned_returns)[start_index:(n_periods-1)]
+#dates       <- index(aligned_returns)[start_index:(n_periods-1)]
+dates       <- index(aligned_returns)[start_index:(n_periods)]
 
 # Strategy-level return containers
 erc_returns   <- mu_returns   <- blend_returns   <- aligned_returns[0,1,drop=FALSE]
@@ -378,27 +379,33 @@ print(tail(blend_etf_xts))
 # Get trade list #
 
 # Suppose your last blend weights xts has:
-tw <- as.numeric(last(blend_etf_xts))
+tw <- blend_etf_xts
+tw <- head(tw, nrow(tw)-1)
+
+tw <- as.numeric(last(tw))
 names(tw) <- colnames(blend_etf_xts)
 
+
+
+
 # And you currently hold:
-current <- c(cash = 37,
+current <- c(cash = 4,
              QQQ = 0,
              TQQQ = 0,
              SPY = 0,
-             UPRO = 0,
-             EURL = 65.5,
-             EDC = 55,
+             UPRO = 38,
+             EURL = 0,
+             EDC = 73,
              DRN = 0,
              TYD = 0,
              TMF = 0,
-             SHNY = 21)
+             SHNY = 40)
 
 # With $5,000 new cash coming in:
 trade_list <- generate_trade_list(
   target_w       = tw,
   current_shares = current,
-  cash_inflow    = 1300,
+  cash_inflow    = 8000,
   date           = last(index(blend_etf_xts))
 )
 
