@@ -115,18 +115,41 @@ generate_trade_list <- function(target_w,
       return(1)  # $1 per "share" of cash
     }
     # otherwise pull close price for that date
-    data <- try(getSymbols(tk, 
-                           from = date, 
-                           to = date,
-                           auto.assign = FALSE, 
-                           warnings = FALSE, 
-                           method = "libcurl", 
-                           src = "yahoo",
-                           timeout = 120,
-                           connecttimeout=60), silent = TRUE)
+    # data <- try(getSymbols(tk, 
+    #                        from = date, 
+    #                        to = date,
+    #                        auto.assign = FALSE, 
+    #                        warnings = FALSE, 
+    #                        method = "libcurl", 
+    #                        src = "yahoo",
+    #                        timeout = 240,
+    #                        connecttimeout=120), silent = TRUE)
+    # if (inherits(data, "try-error") || nrow(data) == 0)
+    #   stop("Price fetch failed for ", tk)
+    # as.numeric(Cl(data)[as.character(date), 1])
+    # 
+    # data <-     getSymbols(tk, 
+    #                        src = "yahoo", 
+    #                        from = "1950-01-01", 
+    #                        auto.assign = FALSE,
+    #                        warnings = FALSE, 
+    #                        method = "libcurl", 
+    #                        timeout = 60,
+    #                        connecttimeout=30)
+    
+    data <-     getSymbols(tk, auto.assign = FALSE)
+    
+    
+    
     if (inherits(data, "try-error") || nrow(data) == 0)
       stop("Price fetch failed for ", tk)
     as.numeric(Cl(data)[as.character(date), 1])
+    
+    
+    
+    
+    
+    
   })
   
   # 3) Compute current market values and total capital
@@ -176,7 +199,7 @@ generate_trade_list <- function(target_w,
   require(quantmod)
   
   # Make sure date is Date
-  date <- as.Date(date)-1
+  date <- as.Date(date)
   prev_day <- date - 1
   
   # 1) Build full ticker list & initialize current shares
@@ -196,23 +219,25 @@ generate_trade_list <- function(target_w,
     data_xts <- try(
       #getSymbols(tk, from = prev_day, to = date,
       #           auto.assign = FALSE, warnings = FALSE)
-      getSymbols(tk, 
-                 from = as.Date(prev_day), 
-                 to = as.Date(date),
-                 auto.assign = FALSE, 
-                 warnings = FALSE, 
-                 method = "libcurl", 
-                 src = "yahoo",
-                 timeout = 60,
-                 connecttimeout=30),
+      # getSymbols(tk, 
+      #            from = as.Date(prev_day), 
+      #            to = as.Date(date),
+      #            auto.assign = FALSE, 
+      #            warnings = FALSE, 
+      #            method = "libcurl", 
+      #            src = "yahoo",
+      #            timeout = 60,
+      #            connecttimeout=30)
+      
+      data <-     getSymbols(tk, auto.assign = FALSE),
       silent = TRUE
     )
     if (inherits(data_xts, "try-error") || nrow(data_xts) == 0) {
       stop("Price fetch failed for ", tk, " on ", date)
     }
     # extract the row exactly matching 'date'
-    #price <- as.numeric(Cl(data_xts)[as.character(date), 1])
-    price <- as.numeric(data_xts[,4])
+    price <- as.numeric(Cl(data_xts)[as.character(date), 1])
+    #price <- as.numeric(data_xts[,4])
     
     if (is.na(price)) {
       stop("No price for ", tk, " on ", date)
@@ -389,23 +414,23 @@ names(tw) <- colnames(blend_etf_xts)
 
 
 # And you currently hold:
-current <- c(cash = 4,
+current <- c(cash = 54,
              QQQ = 0,
              TQQQ = 0,
              SPY = 0,
-             UPRO = 38,
+             UPRO = 107,
              EURL = 0,
-             EDC = 73,
+             EDC = 82,
              DRN = 0,
              TYD = 0,
              TMF = 0,
-             SHNY = 40)
+             SHNY = 52)
 
 # With $5,000 new cash coming in:
 trade_list <- generate_trade_list(
   target_w       = tw,
   current_shares = current,
-  cash_inflow    = 8000,
+  cash_inflow    = 0,
   date           = last(index(blend_etf_xts))
 )
 

@@ -151,14 +151,18 @@ etfs <- c("SPY",
 
 assets <- lapply(etfs, FUN = function(x){
   print(x)
-  df <- getSymbols(x, 
-                   src = "yahoo", 
-                   from = "1950-01-01", 
-                   auto.assign = FALSE,
-                   warnings = FALSE, 
-                   method = "libcurl", 
-                   timeout = 60,
-                   connecttimeout=30)
+  # df <- getSymbols(x, 
+  #                  src = "yahoo", 
+  #                  from = "1950-01-01", 
+  #                  auto.assign = FALSE,
+  #                  warnings = FALSE, 
+  #                  method = "libcurl", 
+  #                  timeout = 60,
+  #                  connecttimeout=30)
+  
+  df <- getSymbols(x, auto.assign = FALSE)
+  
+  
   df <- df[,4]
   names(df) <- gsub(".Close", "", names(df))
   returns <- Return.calculate(df)
@@ -218,7 +222,7 @@ strat_3x <- strat_returns*3
 
 charts.PerformanceSummary(strat_3x)
 Return.annualized(strat_3x["2015/"])
-SharpeRatio.annualized(strat_3x)
+SharpeRatio.annualized(strat_3x["2015/"])
 
 ### LEVERAGED ETFS ###################################################################
 # SPY -> UPRO
