@@ -221,7 +221,18 @@ strat_wts     <- portf_return_momo_equal_risk(r_full, n_assets = 3, n_days = 120
 strat_3x <- strat_returns*3
 
 charts.PerformanceSummary(strat_3x)
+charts.PerformanceSummary(merge(strat_3x,returns$SPY))
+
+output <- merge(strat_3x,returns$SPY)
+output <- output[complete.cases(output),]
+names(output) <- c("Multi-Asset Momentum", "S&P 500")
+
+charts.PerformanceSummary(output)
+
+charts.PerformanceSummary(merge(strat_3x,returns$SPY)["2015/"])
 Return.annualized(strat_3x["2015/"])
+Return.annualized(merge(strat_3x,returns$SPY)["2015/2025"])
+Return.cumulative(merge(strat_3x,returns$SPY)["2015/2025"])
 SharpeRatio.annualized(strat_3x["2015/"])
 
 ### LEVERAGED ETFS ###################################################################

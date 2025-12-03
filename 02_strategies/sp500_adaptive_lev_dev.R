@@ -160,6 +160,7 @@ asset$smasig <- ifelse(asset$sma_rat>smathres,1,0)
 asset$volsig <- ifelse(asset$vol_rat<volthres,1,0)
 asset$p2hsig <- ifelse(asset$p2h>p2hthres,1,0)
 asset$score <- rowSums(asset[,c("smasig","volsig","p2hsig")])
+#asset$score <- rowSums(asset[,c("volsig")])
 
 # asset$multiplier <- ifelse(asset$smasig == 1 & asset$volsig == 1 & asset$p2hsig == 1, 3,
 #                     ifelse(asset$smasig == 1 & asset$volsig == 1 & asset$p2hsig == 0, 0.9,
@@ -197,9 +198,10 @@ strat <- merge(asset[,c("strat", "Return")],bmk[,"Benchmark_3X_Buy_and_Hold"])
 
 ## Total Backtest Performance
 output <- merge(asset[,c("strat", "Return")],bmk[,"Benchmark_3X_Buy_and_Hold"])
-names(output) <- c("AdaptiveLeverage", "S&P500", "3X S&P500 Buy and Hold")
-charts.PerformanceSummary(output, main = "Adaptive Leverage Strategy Performance")
-
+names(output) <- c("S&P 500 Adaptive Leverage", "S&P 500", "3X S&P 500 Buy and Hold")
+charts.PerformanceSummary(output["2021-07/"], main = "S&P 500 Adaptive Leverage Strategy Performance")
+charts.PerformanceSummary(output[,c("S&P 500 Adaptive Leverage", "S&P 500")]["2021-07/"])
+SharpeRatio.annualized(output[,c("S&P 500 Adaptive Leverage", "S&P 500")])
 
 asset$cash <- 0
 asset$SPY  <- 0

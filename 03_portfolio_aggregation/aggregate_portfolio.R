@@ -414,17 +414,17 @@ names(tw) <- colnames(blend_etf_xts)
 
 
 # And you currently hold:
-current <- c(cash = 54,
+current <- c(cash = 1430,
              QQQ = 0,
              TQQQ = 0,
              SPY = 0,
-             UPRO = 107,
+             UPRO = 136,
              EURL = 0,
-             EDC = 82,
+             EDC = 78,
              DRN = 0,
              TYD = 0,
              TMF = 0,
-             SHNY = 52)
+             SHNY = 34)
 
 # With $5,000 new cash coming in:
 trade_list <- generate_trade_list(

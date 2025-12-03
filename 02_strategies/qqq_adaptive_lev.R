@@ -188,8 +188,8 @@ strat <- merge(asset[,c("strat", "Return")],bmk[,"Benchmark_3X_Buy_and_Hold"])
 
 ## Total Backtest Performance
 output <- merge(asset[,c("strat", "Return")],bmk[,"Benchmark_3X_Buy_and_Hold"])
-names(output) <- c("AdaptiveLeverage", "QQQ", "3X QQQ Buy and Hold")
-charts.PerformanceSummary(output, main = "Adaptive Leverage Strategy Performance")
+names(output) <- c("NASDAQ 100 Adaptive Leverage", "NASDAQ 100", "3X NASDAQ 100 Buy and Hold")
+charts.PerformanceSummary(output, main = "NASDAQ 100 Adaptive Leverage Strategy Performance")
 
 
 asset$cash <- 0
