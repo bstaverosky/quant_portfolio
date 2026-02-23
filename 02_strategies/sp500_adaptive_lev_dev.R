@@ -1,5 +1,7 @@
 rm(list=ls())
 # Install libraries if not installed
+# TEST - DID UPLOAD FROM LAPTOP WORK?
+
 {
 list.of.packages <- c("quantmod", 
                       "PerformanceAnalytics",
@@ -24,7 +26,7 @@ library(kableExtra)
 library(ggplot2)
 library(ggthemes)
 library(xtable)
-source("/home/brian/Documents/projects/adaptive_leverage/adhoc_functions.R")
+#source("/home/brian/Documents/projects/adaptive_leverage/adhoc_functions.R")
 source("~/quant_portfolio/02_strategies/utils.R")  # adjust path as needed
 }
 ### LOAD ASSET TO TRADE ###
