@@ -46,8 +46,8 @@ names(asset) <- "Close"
 asset$Close <- na.locf(asset$Close)
 
 # Today's Date
-# newrow <- xts(data.frame(Close = 589.00), order.by = (as.Date("2025-06-02")))
-# asset  <- rbind(asset,newrow)
+#newrow <- xts(data.frame(Close = 757.41), order.by = (as.Date("2026-09-15")))
+#asset  <- rbind(asset,newrow)
 
 ##### USER INPUTS #####
 smathres <- 1

@@ -303,6 +303,13 @@ print(round(perf_table,3))
 charts.PerformanceSummary(portfolios["2015/"], legend.loc="topleft", main="Walk-Forward Strategy Comparison")
 Return.annualized(portfolios["2014/"])
 
+charts.PerformanceSummary(portfolios, legend.loc="topleft", main="Walk-Forward Strategy Comparison")
+Return.annualized(portfolios)
+SharpeRatio.annualized(portfolios)
+
+charts.PerformanceSummary(portfolios["2025-09-11/"], legend.loc="topleft", main="Walk-Forward Strategy Comparison")
+Return.annualized(portfolios["2026-01-01/"])
+Return.annualized(portfolios["2024-11-18/2026-09-11"])
 
 # === HISTORICAL WEIGHTS OUTPUT ===
 # Strategy-level:
@@ -321,13 +328,13 @@ tw <- as.numeric(last(blend_etf_xts))
 names(tw) <- colnames(blend_etf_xts)
 
 # And you currently hold:
-current <- c(cash = 0,
+current <- c(cash = 3530,
              QQQ = 0,
              TQQQ = 0,
-             SPY = 0,
-             UPRO = 0,
-             EURL = 0,
-             EDC = 0,
+             SPY = 38,
+             UPRO = 91,
+             EURL = 277,
+             EDC = 78,
              DRN = 0,
              TYD = 0,
              TMF = 0,
@@ -337,7 +344,7 @@ current <- c(cash = 0,
 trade_list <- generate_trade_list(
   target_w       = tw,
   current_shares = current,
-  cash_inflow    = 5000,
+  cash_inflow    = 0,
   date           = last(index(blend_etf_xts))
 )
 

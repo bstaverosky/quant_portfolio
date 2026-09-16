@@ -149,23 +149,39 @@ etfs <- c("SPY",
           "GLD"
 )
 
-assets <- lapply(etfs, FUN = function(x){
+# assets <- lapply(etfs, FUN = function(x){
+#   print(x)
+#   # df <- getSymbols(x, 
+#   #                  src = "yahoo", 
+#   #                  from = "1950-01-01", 
+#   #                  auto.assign = FALSE,
+#   #                  warnings = FALSE, 
+#   #                  method = "libcurl", 
+#   #                  timeout = 60,
+#   #                  connecttimeout=30)
+#   
+#   df <- getSymbols(x, auto.assign = FALSE)
+#   
+#   
+#   df <- df[,4]
+#   names(df) <- gsub(".Close", "", names(df))
+#   returns <- Return.calculate(df)
+#   returns
+# })
+
+assets <- lapply(etfs, FUN = function(x) {
   print(x)
-  # df <- getSymbols(x, 
-  #                  src = "yahoo", 
-  #                  from = "1950-01-01", 
-  #                  auto.assign = FALSE,
-  #                  warnings = FALSE, 
-  #                  method = "libcurl", 
-  #                  timeout = 60,
-  #                  connecttimeout=30)
   
   df <- getSymbols(x, auto.assign = FALSE)
   
-  
-  df <- df[,4]
+  df <- df[, 4]
   names(df) <- gsub(".Close", "", names(df))
+  
+  # Fill missing prices with the previous available observation
+  df <- zoo::na.locf(df, na.rm = FALSE)
+  
   returns <- Return.calculate(df)
+  
   returns
 })
 
@@ -219,9 +235,13 @@ strat_returns <- portf_return_momo_equal_risk(r_full, n_assets = 3, n_days = 120
 strat_wts     <- portf_return_momo_equal_risk(r_full, n_assets = 3, n_days = 120, n_days_vol = 42, momo_type = "above average", otype = "weights")
 
 strat_3x <- strat_returns*3
+#strat_3x <- strat_returns
 
 charts.PerformanceSummary(strat_3x)
 charts.PerformanceSummary(merge(strat_3x,returns$SPY))
+
+Return.annualized(strat_3x["2024/2025"])
+Return.cumulative(strat_3x["2024/2025"])
 
 output <- merge(strat_3x,returns$SPY)
 output <- output[complete.cases(output),]
@@ -229,8 +249,8 @@ names(output) <- c("Multi-Asset Momentum", "S&P 500")
 
 charts.PerformanceSummary(output)
 
-charts.PerformanceSummary(merge(strat_3x,returns$SPY)["2015/"])
-Return.annualized(strat_3x["2015/"])
+charts.PerformanceSummary(merge(strat_3x,returns$SPY))
+Return.annualized(strat_3x)
 Return.annualized(merge(strat_3x,returns$SPY)["2015/2025"])
 Return.cumulative(merge(strat_3x,returns$SPY)["2015/2025"])
 SharpeRatio.annualized(strat_3x["2015/"])
