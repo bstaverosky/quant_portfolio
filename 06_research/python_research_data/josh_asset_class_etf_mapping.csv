@@ -1,0 +1,12 @@
+"Asset_Class","ETF","Current_Strategy"
+"Cash","Cash",TRUE
+"US Equity","SPY",TRUE
+"European Equity","VGK",TRUE
+"Japanese Equity","EWJ",FALSE
+"Emerging Market Equity","EEM",TRUE
+"US Real Estate","ICF",TRUE
+"International Real Estate","RWX",FALSE
+"Intermediate Term Treasury","IEF",TRUE
+"Long Term Treasury","TLT",TRUE
+"Commodities","DBC",FALSE
+"Gold","GLD",TRUE

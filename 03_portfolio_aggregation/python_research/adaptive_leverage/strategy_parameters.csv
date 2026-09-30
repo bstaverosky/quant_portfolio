@@ -1,0 +1,15 @@
+"parameter","value"
+"smathres",1
+"volthres",1
+"p2hthres",0.9
+"svoldays",65
+"lvoldays",252
+"ssmadays",21
+"lsmadays",200
+"entry",252
+"exit",252
+"score_0_exposure",0
+"score_1_exposure",0.5
+"score_2_exposure",0.9
+"score_3_exposure",3
+"signal_lag_days",1

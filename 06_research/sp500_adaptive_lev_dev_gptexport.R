@@ -251,7 +251,298 @@ export_strategy_output(
 )
 
 
+# ==============================================================================
+# PYTHON RESEARCH EXPORT
+# ==============================================================================
+# METHODOLOGY
+# ------------------------------------------------------------------------------
+# Purpose:
+#   Export the raw data, engineered features, signals, positions, returns,
+#   benchmarks, and model parameters required to:
+#
+#   1. Reproduce the existing Adaptive Leverage strategy exactly in Python.
+#   2. Re-estimate signals from raw data rather than trusting R calculations.
+#   3. Test alternative thresholds/lookbacks/leverage schedules.
+#   4. Add realistic cash returns, UPRO returns, transaction costs, and slippage.
+#   5. Perform walk-forward / out-of-sample / parameter robustness research.
+#
+# Current strategy:
+#   Signals:
+#     SMA:    SMA(ssmadays) / SMA(lsmadays) > smathres
+#     VOL:    short-term vol / long-term vol < volthres
+#     P2H:    Close / prior 252-day high > p2hthres
+#
+#   Raw score = SMA signal + VOL signal + P2H signal
+#
+#   Trading score = raw score lagged one trading day.
+#
+#   Exposure:
+#     Score 0 -> 0.0x equity
+#     Score 1 -> 0.5x equity
+#     Score 2 -> 0.9x equity
+#     Score 3 -> 3.0x equity
+#
+#   Current R backtest assumes:
+#     strategy return = today's index return * yesterday's signal exposure
+#
+# Notes:
+#   fwdret is RESEARCH ONLY and contains future information.
+#   dhlsig is exported even though it is not currently used in the strategy.
+#   Synthetic 3x SPY is not the same as actual UPRO, so actual UPRO is exported.
+# ==============================================================================
 
+export_dir <- "/home/brian/quant_portfolio/03_portfolio_aggregation/python_research/adaptive_leverage"
+
+dir.create(export_dir, recursive = TRUE, showWarnings = FALSE)
+
+
+# ---- 1. RECONSTRUCT RAW + TRADE SCORES ---------------------------------------
+
+asset$score_raw <- rowSums(
+  asset[, c("smasig", "volsig", "p2hsig")],
+  na.rm = FALSE
+)
+
+# asset$score is already the 1-day lagged score in your existing script
+asset$score_trade <- asset$score
+
+asset$multiplier <- ifelse(asset$score_trade == 0, 0.0,
+                           ifelse(asset$score_trade == 1, 0.5,
+                                  ifelse(asset$score_trade == 2, 0.9,
+                                         ifelse(asset$score_trade == 3, 3.0, NA))))
+
+
+# ---- 2. DAILY MODEL DATA ------------------------------------------------------
+
+model_export <- asset[, c(
+  "Close",
+  "Return",
+  "stvol",
+  "ltvol",
+  "vol_rat",
+  "sma_rat",
+  "p2h",
+  "dh",
+  "dl",
+  "dhlsig",
+  "fwdret",
+  "smasig",
+  "volsig",
+  "p2hsig",
+  "score_raw",
+  "score_trade",
+  "multiplier",
+  "strat",
+  "cash",
+  "SPY",
+  "UPRO"
+)]
+
+model_export <- data.frame(
+  Date = index(model_export),
+  coredata(model_export),
+  row.names = NULL
+)
+
+write.csv(
+  model_export,
+  file.path(export_dir, "adaptive_leverage_daily.csv"),
+  row.names = FALSE
+)
+
+
+# ---- 3. RAW TRADEABLE MARKET DATA --------------------------------------------
+
+tickers <- c("SPY", "UPRO")
+
+market_list <- lapply(tickers, function(ticker) {
+  
+  x <- getSymbols(
+    ticker,
+    src = "yahoo",
+    from = "1900-01-01",
+    auto.assign = FALSE
+  )
+  
+  x <- data.frame(
+    Date     = index(x),
+    Open     = as.numeric(Op(x)),
+    High     = as.numeric(Hi(x)),
+    Low      = as.numeric(Lo(x)),
+    Close    = as.numeric(Cl(x)),
+    Adjusted = as.numeric(Ad(x)),
+    Volume   = as.numeric(Vo(x))
+  )
+  
+  x$Ticker <- ticker
+  x
+})
+
+market_export <- do.call(rbind, market_list)
+
+market_export <- market_export[, c(
+  "Date", "Ticker", "Open", "High", "Low",
+  "Close", "Adjusted", "Volume"
+)]
+
+write.csv(
+  market_export,
+  file.path(export_dir, "tradeable_market_data.csv"),
+  row.names = FALSE
+)
+
+
+# ---- 4. S&P 500 INDEX SOURCE DATA --------------------------------------------
+
+index_export <- data.frame(
+  Date  = index(asset),
+  Close = as.numeric(asset$Close)
+)
+
+write.csv(
+  index_export,
+  file.path(export_dir, "sp500_index.csv"),
+  row.names = FALSE
+)
+
+
+# ---- 5. CASH / T-BILL PROXY --------------------------------------------------
+# Yahoo ^IRX = 13-week Treasury bill yield.
+# Export raw yield so Python can determine the appropriate daily cash-return
+# methodology rather than hard-coding zero return for cash.
+
+irx <- tryCatch(
+  getSymbols(
+    "^IRX",
+    src = "yahoo",
+    from = "1900-01-01",
+    auto.assign = FALSE
+  ),
+  error = function(e) NULL
+)
+
+if(!is.null(irx)) {
+  
+  irx_export <- data.frame(
+    Date = index(irx),
+    IRX_Yield = as.numeric(Cl(irx))
+  )
+  
+  write.csv(
+    irx_export,
+    file.path(export_dir, "cash_proxy_irx.csv"),
+    row.names = FALSE
+  )
+}
+
+
+# ---- 6. STRATEGY PARAMETERS --------------------------------------------------
+
+parameters <- data.frame(
+  parameter = c(
+    "smathres",
+    "volthres",
+    "p2hthres",
+    "svoldays",
+    "lvoldays",
+    "ssmadays",
+    "lsmadays",
+    "entry",
+    "exit",
+    "score_0_exposure",
+    "score_1_exposure",
+    "score_2_exposure",
+    "score_3_exposure",
+    "signal_lag_days"
+  ),
+  
+  value = c(
+    smathres,
+    volthres,
+    p2hthres,
+    svoldays,
+    lvoldays,
+    ssmadays,
+    lsmadays,
+    entry,
+    exit,
+    0.0,
+    0.5,
+    0.9,
+    3.0,
+    1
+  )
+)
+
+write.csv(
+  parameters,
+  file.path(export_dir, "strategy_parameters.csv"),
+  row.names = FALSE
+)
+
+
+# ---- 7. BENCHMARK / FINAL RETURNS --------------------------------------------
+
+performance_export <- merge(
+  asset[, c("Return", "strat")],
+  bmk[, "Benchmark_3X_Buy_and_Hold"]
+)
+
+names(performance_export) <- c(
+  "SP500_Return",
+  "Adaptive_Return",
+  "Synthetic_3X_SPY_Return"
+)
+
+performance_export <- data.frame(
+  Date = index(performance_export),
+  coredata(performance_export),
+  row.names = NULL
+)
+
+write.csv(
+  performance_export,
+  file.path(export_dir, "strategy_returns.csv"),
+  row.names = FALSE
+)
+
+
+# ---- 8. EXPORT MANIFEST ------------------------------------------------------
+
+manifest <- c(
+  "ADAPTIVE LEVERAGE RESEARCH EXPORT",
+  paste("Created:", Sys.time()),
+  "",
+  "adaptive_leverage_daily.csv",
+  "  Complete feature/signal/position dataset.",
+  "",
+  "sp500_index.csv",
+  "  Raw S&P 500 index close used to calculate signals.",
+  "",
+  "tradeable_market_data.csv",
+  "  SPY and UPRO OHLCV + adjusted prices.",
+  "",
+  "cash_proxy_irx.csv",
+  "  13-week Treasury bill yield for realistic cash returns.",
+  "",
+  "strategy_parameters.csv",
+  "  Current model parameters and exposure mapping.",
+  "",
+  "strategy_returns.csv",
+  "  Current strategy, S&P 500, and synthetic 3x returns.",
+  "",
+  "IMPORTANT:",
+  "fwdret contains future information and must never be used as a live signal.",
+  "score_raw is the same-day signal score.",
+  "score_trade is the lagged score actually used for trading."
+)
+
+writeLines(
+  manifest,
+  file.path(export_dir, "README.txt")
+)
+
+cat("\nPython research export complete:\n", export_dir, "\n")
 
 
 
