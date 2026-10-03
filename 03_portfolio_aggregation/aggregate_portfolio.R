@@ -361,13 +361,13 @@ cat("\nLatest combined target weights (rerun source scripts to refresh):\n")
 print(round(tw, 6))
 
 # And you currently hold:
-current <- c(cash = 4300,
+current <- c(cash = 2320,
              QQQ = 0,
              TQQQ = 0,
              SPY = 0,
-             UPRO = 281,
-             EURL = 277,
-             EDC = 78,
+             UPRO = 305,
+             EURL = 295,
+             EDC = 77,
              DRN = 0,
              TYD = 0,
              TMF = 0,

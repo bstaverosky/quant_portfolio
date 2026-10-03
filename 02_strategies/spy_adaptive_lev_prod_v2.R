@@ -45,7 +45,7 @@ if(length(new)) install.packages(new)
 invisible(lapply(pkgs, library, character.only = TRUE))
 
 # ---- USER INPUTS ------------------------------------------------------------
-INDEX_TICKER <- "^GSPC"
+INDEX_TICKER <- "SPY"
 FROM_DATE    <- "1900-01-01"
 
 sma_short <- 21
